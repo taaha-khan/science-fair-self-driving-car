@@ -5,8 +5,7 @@ from collections import defaultdict
 import numpy as np
 import random
 import pickle
-
-SEED = 420
+import os
 
 class QAgent:
 
@@ -21,7 +20,7 @@ class QAgent:
 
 		self.episode_length = 30
 
-		self.q_table = defaultdict(int, {})
+		self.q_table = defaultdict(lambda: {i: 0 for i in range(5)})
 
 		self.actions = {
 			'LANE_LEFT': 0,
@@ -39,28 +38,36 @@ class QAgent:
 		max_q_value = 0
 
 		if state in self.q_table:
+			print(f'Checked: {list(self.q_table[state].values())}')
 			for action, action_q_value in self.q_table[state].items():
 				if action_q_value > max_q_value:
 					max_q_value = action_q_value
 					max_q_value_action = action
-		
+		else:
+			print('Random Action')
+
 		return max_q_value_action
 
-	def update(self, env, state):
+	def update(self, env, raw_state):
 
 		if random.random() < self.epsilon:
 			action = env.action_space.sample()
+			print('Random Action')
 		else:
-			action = self.step(env, state)
+			action = self.step(env, raw_state)
 		
 		next_state, reward, done, info = env.step(action)
 
 		next_state = self.normalize(next_state)
+		state = self.normalize(raw_state)
+
 		old_q_value = self.q_table[state][action]
 
 		# Check if next_state has q values already
 		if next_state not in self.q_table:
-			self.q_table[next_state] = {action: 0 for action in range(env.action_space.n)}
+			self.q_table[next_state] = {
+				action: 0 for action in range(env.action_space.n)
+			}
 
 		# Maximum q_value for the actions in next state
 		next_max = max(self.q_table[next_state].values())
@@ -73,16 +80,19 @@ class QAgent:
 
 		return next_state, reward, done, info
 	
-	def learn(self, env, num_episodes = 300):
+	def learn(self, env, loaded = 'q_table', num_episodes = 500):
+
+		if os.path.exists(loaded):
+			self.load(loaded)
 
 		self.num_episodes = num_episodes
 
 		for episode in range(num_episodes):
 
-			# env.seed(SEED)
-			state = self.normalize(env.reset())
-			if state not in self.q_table:
-				self.q_table[state] = {
+			state = env.reset()
+			normal = self.normalize(state)
+			if normal not in self.q_table:
+				self.q_table[normal] = {
 					action: 0 for action in range(env.action_space.n)
 				}
 
@@ -109,7 +119,7 @@ class QAgent:
 	def save(self, filepath = f'q_table'):
 		with open(filepath, 'wb') as file:
 			pickle.dump(dict(self.q_table), file)
-		print(f'model saved to {filepath}')
+		# print(f'model saved to {filepath}')
 		
 	def load(self, filepath = f'q_table'):
 		with open(filepath, 'rb') as file:

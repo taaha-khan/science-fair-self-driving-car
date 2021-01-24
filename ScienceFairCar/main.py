@@ -3,16 +3,19 @@ import gym
 import highway_env
 
 import q_agent
+import q_network
 
 env = gym.make("highway-v0")
 env.configure({
+
 	'observation': {
 		'type': 'TimeToCollision',
-		'horizon': 5
+		'horizon': 10
 	},
 
+	'lanes_count': 4,
+
 	'duration': 25,
-	'simulation_frequency': 15,
 	'offscreen_rendering': False,
 
 	'screen_height': 350,
@@ -21,18 +24,18 @@ env.configure({
 
 })
 
-agent = q_agent.QAgent()
-agent.learn(env)
-# agent.load()
+# agent = q_agent.QAgent()
+agent = q_network.QNetwork()
 
-# env.seed(q_agent.SEED)
+agent.learn(env)
+agent.load()
+
 obs = env.reset()
 
 for i in range(30):
 	action = agent.step(env, obs)
 	# action = env.action_space.sample()
 	obs, reward, done, info = env.step(action)
-	# print(obs)
 	env.render()
 	if done:
 		break
