@@ -2,12 +2,19 @@
 # https://github.com/satwikkansal/q-learning-taxi-v3
 
 import matplotlib.pyplot as plt
-from matplotlib.pyplot import show, plot
 from collections import defaultdict
 import numpy as np
 import pickle
 import os
 import nn
+
+ACTIONS_ALL = {
+	0: 'LANE_LEFT',
+	1: 'IDLE',
+	2: 'LANE_RIGHT',
+	3: 'FASTER',
+	4: 'SLOWER'
+}
 
 class QNetwork:
 
@@ -18,12 +25,12 @@ class QNetwork:
 		self.epsilon_decay = 0.94
 
 		self.actions = list(range(3))
-		self.model = nn.NeuralNetwork(90, 200, len(self.actions))
+		self.model = nn.NeuralNetwork(30, 200, len(self.actions))
 
 		self.history = []
 		self.num = 0
 
-	def step(self, env, state):
+	def step(self, state):
 
 		state = self.normalize(state)
 
@@ -36,13 +43,13 @@ class QNetwork:
 	
 	def train(self, data):
 
-		old_q = np.array(self.model.predict(data['state']))
+		old_q = self.model.predict(data['state'])
 		new_q = self.model.predict(data['next_state'])
 
-		old_q[data['action']] = data['reward'] * max(new_q)
+		old_q[data['action']] = (data['reward'] + max(new_q)) / 2
 
 		X = data['state'].copy()
-		Y = list(old_q / old_q.max())
+		Y = list(old_q)
 
 		self.model.train(X, Y)
 
@@ -52,7 +59,7 @@ class QNetwork:
 		if np.random.random_sample() < self.epsilon:
 			action = np.random.choice(self.actions)
 		else:
-			action = self.step(env, raw_state)
+			action = self.step(raw_state)
 		
 		# Stepping through environment
 		raw_next_state, reward, done, info = env.step(action)
@@ -73,24 +80,21 @@ class QNetwork:
 		self.train(self.history[-1])
 
 		# Training from random batch from previous steps
-		self.train(np.random.choice(self.history))
-
-		# Only remembering previous 100 steps
-		if len(self.history) > 100:
-			self.history.pop(0)
+		for _ in range(5):
+			self.train(np.random.choice(self.history))
 
 		return raw_next_state, reward, done, info
 	
-	def learn(self, env, loaded = 'q_network_200', num_episodes = 200):
+	def learn(self, env, loaded = 'q_network', num_episodes = 200):
 
-		if os.path.exists(loaded):
-			self.load(loaded)
+		# if os.path.exists(loaded):
+		# 	self.load(loaded)
 		
-		fig = plt.gcf()
-		fig.show()
-		fig.canvas.draw()
+		# fig = plt.gcf()
+		# fig.show()
+		# fig.canvas.draw()
 
-		y_axis = []
+		# y_axis = []
 		
 		for episode in range(num_episodes):
 
@@ -107,18 +111,18 @@ class QNetwork:
 			
 			self.epsilon = max(self.epsilon * self.epsilon_decay, self.min_epsilon)
 
-			x_axis = list(range(episode + 1))
-			y_axis.append(total_reward)
+			# x_axis = list(range(episode + 1))
+			# y_axis.append(total_reward)
 
-			plt.plot(x_axis, y_axis, color = 'red', marker = 'o')
-			plt.title('Reward vs Episodes')
-			plt.xlabel('Episodes')
-			plt.ylabel('Reward')
+			# plt.plot(x_axis, y_axis, color = 'red')
+			# plt.title('Reward vs Episodes')
+			# plt.xlabel('Episodes')
+			# plt.ylabel('Reward')
 
-			plt.xlim([0, max(x_axis) + 1])
-			plt.ylim([0, max(y_axis) + 1])
+			# plt.xlim([0, max(x_axis) + 1])
+			# plt.ylim([0, max(y_axis) + 1])
 
-			fig.canvas.draw()
+			# fig.canvas.draw()
 
 			print(f'episode {episode} completed | steps {self.num} | reward: {total_reward}')
 		print(f'\n{num_episodes} training episodes completed')
@@ -128,15 +132,13 @@ class QNetwork:
 		plt.show()
 	
 	def normalize(self, state):
-		if type(state) not in [list, tuple]:
-			return state.flatten().tolist()
-		return state
+		return state[1].flatten().tolist()
 
-	def save(self, filepath = f'q_network_200'):
+	def save(self, filepath = f'q_network'):
 		self.model.dump_weights(filepath)
 		print(f'model saved to {filepath}')
 
-	def load(self, filepath = f'q_network_200'):
+	def load(self, filepath = f'q_network'):
 		self.model.load_weights(filepath)
 		print(f'model loaded from {filepath}')
 		return self.model
