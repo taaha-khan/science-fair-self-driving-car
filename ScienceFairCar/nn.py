@@ -1,3 +1,6 @@
+
+''' Neural Network Library '''
+
 # Imports
 import random, math, pickle
 

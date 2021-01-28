@@ -1,5 +1,5 @@
 
-# https://github.com/satwikkansal/q-learning-taxi-v3
+''' Q-Table Library '''
 
 from collections import defaultdict
 import numpy as np

@@ -1,5 +1,5 @@
 
-# https://github.com/satwikkansal/q-learning-taxi-v3
+''' Q-Network Library '''
 
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -49,7 +49,7 @@ class QNetwork:
 		old_q[data['action']] = (data['reward'] + max(new_q)) / 2
 
 		X = data['state'].copy()
-		Y = list(old_q)
+		Y = old_q.copy()
 
 		self.model.train(X, Y)
 
@@ -82,6 +82,10 @@ class QNetwork:
 		# Training from random batch from previous steps
 		for _ in range(5):
 			self.train(np.random.choice(self.history))
+		
+		# Reducing history to only last 100 steps
+		if len(self.history) > 100:
+			self.history.pop(0)
 
 		return raw_next_state, reward, done, info
 	
