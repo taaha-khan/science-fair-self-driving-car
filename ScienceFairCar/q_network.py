@@ -1,20 +1,11 @@
 
 ''' Q-Network Library '''
 
-import matplotlib.pyplot as plt
 from collections import defaultdict
+from graph import Graph
 import numpy as np
-import pickle
 import os
 import nn
-
-ACTIONS_ALL = {
-	0: 'LANE_LEFT',
-	1: 'IDLE',
-	2: 'LANE_RIGHT',
-	3: 'FASTER',
-	4: 'SLOWER'
-}
 
 class QNetwork:
 
@@ -37,7 +28,7 @@ class QNetwork:
 		predictions = self.model.predict(state)
 		action = int(np.argmax(predictions))
 
-		# print(list(map(lambda a: round(a, 2), predictions)))
+		# print(np.array(predictions))
 
 		return action
 	
@@ -47,6 +38,8 @@ class QNetwork:
 		new_q = self.model.predict(data['next_state'])
 
 		old_q[data['action']] = (data['reward'] + max(new_q)) / 2
+		if data['reward'] == 0:
+			old_q[data['action']] = 0
 
 		X = data['state'].copy()
 		Y = old_q.copy()
@@ -89,18 +82,15 @@ class QNetwork:
 
 		return raw_next_state, reward, done, info
 	
-	def learn(self, env, loaded = 'q_network', num_episodes = 200):
+	def learn(self, env, save_to, loaded = 'none', num_episodes = 200):
 
-		# if os.path.exists(loaded):
-		# 	self.load(loaded)
+		if os.path.exists(loaded):
+			self.load(loaded)
 		
-		# fig = plt.gcf()
-		# fig.show()
-		# fig.canvas.draw()
-
-		# y_axis = []
+		graph = Graph('Reward vs Episodes', 'Episode', 'Reward')
+		avg_reward = 0
 		
-		for episode in range(num_episodes):
+		for episode in range(1, num_episodes + 1):
 
 			state = env.reset()
 
@@ -114,35 +104,25 @@ class QNetwork:
 					break
 			
 			self.epsilon = max(self.epsilon * self.epsilon_decay, self.min_epsilon)
+			
+			avg_reward += total_reward
+			graph.step(episode, avg_reward / episode)
 
-			# x_axis = list(range(episode + 1))
-			# y_axis.append(total_reward)
+			self.save(save_to)
 
-			# plt.plot(x_axis, y_axis, color = 'red')
-			# plt.title('Reward vs Episodes')
-			# plt.xlabel('Episodes')
-			# plt.ylabel('Reward')
-
-			# plt.xlim([0, max(x_axis) + 1])
-			# plt.ylim([0, max(y_axis) + 1])
-
-			# fig.canvas.draw()
-
-			print(f'episode {episode} completed | steps {self.num} | reward: {total_reward}')
+			print(f'episode {episode} completed | steps {self.num} | reward: {total_reward} | avg: {avg_reward / episode}')
 		print(f'\n{num_episodes} training episodes completed')
 
-		self.save(loaded)
+		graph.show()
 
-		plt.show()
-	
 	def normalize(self, state):
 		return state[1].flatten().tolist()
 
-	def save(self, filepath = f'q_network'):
+	def save(self, filepath):
 		self.model.dump_weights(filepath)
-		print(f'model saved to {filepath}')
+		# print(f'model saved to {filepath}')
 
-	def load(self, filepath = f'q_network'):
+	def load(self, filepath):
 		self.model.load_weights(filepath)
 		print(f'model loaded from {filepath}')
 		return self.model
